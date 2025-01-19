@@ -9,8 +9,14 @@ pygame.mixer.music.play()
 fire_sound = pygame.mixer.Sound("audio/fire.ogg")
 
 pygame.font.init()
-font = pygame.font.Font("font/PressStart2P.ttf", 40)
 
+font = pygame.font.Font("font/PressStart2P.ttf", 40)
+end_game_font = pygame.font.Font("font/PressStart2P.ttf", 64)
+
+you_win_text = end_game_font.render("You win!", True, "white")
+you_lose_text = end_game_font.render("You lose!", True, "white")
+
+goal = 10
 score = 0
 lost = 0
 
@@ -28,6 +34,7 @@ class GameSprite(pygame.sprite.Sprite):
     def draw(self):
         window.blit(self.image, (self.rect.x, self.rect.y))
 
+
 class Player(GameSprite):
     def move(self):
         keys = pygame.key.get_pressed()
@@ -35,6 +42,13 @@ class Player(GameSprite):
             self.rect.x -= self.speed
         if keys[pygame.K_d] and self.rect.x < WIDTH - self.width:
             self.rect.x += self.speed
+    
+    def fire(self):
+        bullet = Bullet(
+            "img/bullet.png", self.rect.centerx, self.rect.top, 16, 32, 5
+        )
+        bullets.add(bullet)
+
 
 class Enemy(GameSprite):
     def update(self):
@@ -45,6 +59,13 @@ class Enemy(GameSprite):
             self.rect.x = random.randint(64, HEIGHT - 64)
             self.rect.y = 0
             lost += 1
+
+
+class Bullet(GameSprite):
+    def update(self):
+        self.rect.y -= self.speed
+        if self.rect.y < 0:
+            self.kill()
 
 
 WIDTH = 800
@@ -60,15 +81,11 @@ background = pygame.transform.scale(
 ship = Player("img/ship.png", 400, 500, 64, 64, 5)
 
 monsters = pygame.sprite.Group()
+bullets = pygame.sprite.Group()
 
 for i in range(1, 5):
     monster = Enemy(
-        "img/ufo.png", 
-        random.randint(1, WIDTH), 
-        -64,
-        64, 
-        64, 
-        random.randint(1, 5)
+        "img/ufo.png", random.randint(1, WIDTH), -64, 64, 64, random.randint(1, 5)
     )
     monsters.add(monster)
 
@@ -84,6 +101,9 @@ while running:
             if event.key == pygame.K_ESCAPE:
                 running = False
 
+            if event.key == pygame.K_SPACE:
+                ship.fire()
+
     if not game_over:
         window.blit(background, (0, 0))
 
@@ -98,6 +118,26 @@ while running:
 
         ship.draw()
         monsters.draw(window)
+
+        bullets.update()
+        bullets.draw(window)
+
+        collides = pygame.sprite.groupcollide(monsters, bullets, True, True) 
+        for c in collides:
+            score += 1 
+            monster = Enemy(
+                "img/ufo.png", 
+                random.randint(1, WIDTH), -64, 64, 64, random.randint(1, 5)
+            )
+            monsters.add(monster)
+
+        if pygame.sprite.spritecollide(ship, monsters, False) or lost >= 3:
+            game_over = True
+            window.blit(you_lose_text, (200, 200))
+
+        if score >= goal:
+            game_over = True
+            window.blit(you_win_text, (200, 200))
 
         pygame.display.update()
         pygame.time.Clock().tick(60)
